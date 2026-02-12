@@ -1,72 +1,67 @@
-name: "Build Docker Image"
+name: Build and Push Docker Image
 
 on:
   push:
-    branches:
-      - v2*
-    tags:
-      - v*
+    branches: [ main, master ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, master ]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  IMAGE_NAME: onjg/yongyuanjiang
 
 jobs:
-  build_image:
+  build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
-
-      - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v13
-        with:
-          java-version: adopt@1.8
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Cache local Maven repository
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Build project release package
-        run: |
-          ./mvnw clean install -DskipTests -Pshaded,dist,webapp
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+        if: github.event_name != 'pull_request'
 
-      - name: Docker meta
+      - name: Extract metadata (tags, labels)
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
-          images: delik8shub/streampark
+          images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
             type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
 
-      - name: Build and push streampark
-        uses: docker/build-push-action@v3
+      # ========== 构建阶段 ==========
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
         with:
           context: .
-          file: deploy/docker/Dockerfile
-          platforms: linux/amd64,linux/arm64/v8
-          push: true
+          push: false  # 仅构建，不推送
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true   # 将镜像加载到本地 Docker 守护进程，便于后续操作
+
+      # ========== 推送阶段 ==========
+      - name: Push Docker image to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true   # 仅推送，复用缓存加速
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+        if: github.event_name != 'pull_request'  # 仅非 PR 事件执行推送

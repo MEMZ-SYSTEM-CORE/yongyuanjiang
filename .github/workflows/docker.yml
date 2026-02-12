@@ -24,7 +24,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME || 'foreverjiang' }}
 
 jobs:
   build:
@@ -44,7 +44,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_HUB_USERNAME }}/forever-jiang
+          images: ${{ env.DOCKER_HUB_USERNAME }}/forever-jiang
           tags: |
             type=sha,prefix=
             type=ref,event=branch
@@ -68,12 +68,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
+            DOCKER_HUB_USERNAME=${{ env.DOCKER_HUB_USERNAME }}
 
       - name: Export Docker image
         if: github.event.inputs.push != 'true'
         run: |
-          docker save ${{ secrets.DOCKER_HUB_USERNAME }}/forever-jiang:latest | gzip > docker-image.tar.gz
+          docker save ${{ env.DOCKER_HUB_USERNAME }}/forever-jiang:latest | gzip > docker-image.tar.gz
           ls -lh docker-image.tar.gz
 
       - name: Upload artifact
@@ -93,7 +93,7 @@ jobs:
           echo "## Docker镜像构建完成" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ 构建成功" >> $GITHUB_STEP_SUMMARY
-          echo "📦 镜像: ${{ secrets.DOCKER_HUB_USERNAME }}/forever-jiang" >> $GITHUB_STEP_SUMMARY
+          echo "📦 镜像: ${{ env.DOCKER_HUB_USERNAME }}/forever-jiang" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.event.inputs.push }}" == "true" ]]; then
             echo "🚀 已推送到Docker Hub" >> $GITHUB_STEP_SUMMARY
@@ -105,6 +105,6 @@ jobs:
             echo '```bash' >> $GITHUB_STEP_SUMMARY
             echo "gunzip docker-image.tar.gz" >> $GITHUB_STEP_SUMMARY
             echo "docker load < docker-image" >> $GITHUB_STEP_SUMMARY
-            echo "docker run -p 3000:3000 -e JWT_SECRET='your-secret' forever-jiang:latest" >> $GITHUB_STEP_SUMMARY
+            echo "docker run -p 3000:3000 -e JWT_SECRET='your-secret' ${{ env.DOCKER_HUB_USERNAME }}/forever-jiang:latest" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi

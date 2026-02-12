@@ -1,0 +1,59 @@
+# Docker Compose 配置 - 从Docker Hub拉取镜像
+# 使用方法: docker-compose -f docker-compose.yml -f docker-compose.hub.yml up -d
+
+version: '3.8'
+
+services:
+  backend:
+    image: ${DOCKER_HUB_USERNAME:-foreverjiang}/forever-jiang-backend:${TAG:-latest}
+    pull_policy: always
+    container_name: forever-jiang-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - LOG_LEVEL=info
+    volumes:
+      - uploads:/app/uploads
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - forever-jiang-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: ${DOCKER_HUB_USERNAME:-foreverjiang}/forever-jiang-frontend:${TAG:-latest}
+    pull_policy: always
+    container_name: forever-jiang-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - forever-jiang-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  uploads:
+    driver: local
+  data:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  forever-jiang-network:
+    driver: bridge

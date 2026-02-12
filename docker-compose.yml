@@ -1,0 +1,72 @@
+version: '3.8'
+
+# 永远酱系统 Docker Compose 配置
+# 使用说明:
+# 1. 本地构建: docker-compose up -d
+# 2. 从Docker Hub拉取: docker-compose -f docker-compose.yml -f docker-compose.hub.yml up -d
+# 3. 自定义镜像: 设置 DOCKER_HUB_USERNAME 环境变量
+
+services:
+  backend:
+    # 本地构建模式（默认）
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME:-foreverjiang}
+    image: ${DOCKER_HUB_USERNAME:-foreverjiang}/forever-jiang-backend:${TAG:-latest}
+    container_name: forever-jiang-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - LOG_LEVEL=info
+    volumes:
+      - uploads:/app/uploads
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - forever-jiang-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    # 本地构建模式（默认）
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME:-foreverjiang}
+    image: ${DOCKER_HUB_USERNAME:-foreverjiang}/forever-jiang-frontend:${TAG:-latest}
+    container_name: forever-jiang-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - forever-jiang-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  uploads:
+    driver: local
+  data:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  forever-jiang-network:
+    driver: bridge

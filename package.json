@@ -1,0 +1,34 @@
+{
+  "name": "forever-jiang-system",
+  "version": "1.0.0",
+  "description": "永远酱系统分发系统",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm run start",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": [
+    "file-sharing",
+    "cloud-storage",
+    "docker",
+    "vue3",
+    "express"
+  ],
+  "author": "Forever Jiang",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

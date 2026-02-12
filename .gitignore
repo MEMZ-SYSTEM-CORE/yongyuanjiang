@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Database
+*.db
+*.sqlite

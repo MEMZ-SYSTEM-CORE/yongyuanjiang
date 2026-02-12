@@ -38,9 +38,8 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=frontend-builder /app/dist ./public
 
-COPY backend/data ./data
-COPY backend/uploads ./uploads
-COPY backend/logs ./logs
+RUN mkdir -p data uploads logs && \
+    chmod 777 data uploads logs
 
 EXPOSE 3000
 

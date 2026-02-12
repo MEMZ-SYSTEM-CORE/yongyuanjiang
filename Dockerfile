@@ -24,7 +24,7 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ bash
 
 ENV NODE_ENV=production
 
@@ -33,6 +33,7 @@ RUN npm install --only=production && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 COPY --from=frontend-builder /app/dist ./public
+COPY backend/scripts ./scripts
 
 RUN mkdir -p data uploads logs && \
     chmod 777 data uploads logs

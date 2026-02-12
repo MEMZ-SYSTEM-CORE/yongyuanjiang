@@ -3,11 +3,16 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, '../../data/forever_jiang.db');
 
 let db: BetterSQLiteDatabase.Database;
+
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123456';
 
 class DatabaseManager {
   private static instance: DatabaseManager;
@@ -19,6 +24,7 @@ class DatabaseManager {
     }
     db = new BetterSQLiteDatabase(dbPath);
     this.createTables();
+    this.createAdminUser();
   }
   
   static getInstance(): DatabaseManager {
@@ -101,6 +107,27 @@ class DatabaseManager {
     stmt.run('max_file_size', '1073741824');
     stmt.run('default_storage_quota', '10737418240');
     stmt.run('token_secret', crypto.randomBytes(32).toString('hex'));
+  }
+  
+  private createAdminUser(): void {
+    const existingAdmin = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
+    
+    if (!existingAdmin) {
+      const userId = uuidv4();
+      const hashedPassword = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+      
+      db.prepare(`
+        INSERT INTO users (id, username, email, password, role, storage_quota)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(userId, ADMIN_USERNAME, 'admin@example.com', hashedPassword, 'admin', 107374182400);
+      
+      console.log(`✅ Admin user created: ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}`);
+    } else {
+      const hashedPassword = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+      db.prepare('UPDATE users SET username = ?, password = ? WHERE role = ?')
+        .run(ADMIN_USERNAME, hashedPassword, 'admin');
+      console.log(`✅ Admin user updated: ${ADMIN_USERNAME}`);
+    }
   }
   
   getConnection(): BetterSQLiteDatabase.Database {

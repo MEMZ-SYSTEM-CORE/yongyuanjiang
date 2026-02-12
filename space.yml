@@ -1,0 +1,33 @@
+{
+  "$schema": "https://huggingface.co/schema/space",
+  "title": "永远酱系统",
+  "description": "文件分发系统",
+  "emoji": "📦",
+  "colorFrom": "blue",
+  "colorTo": "green",
+  "sdk": "docker",
+  "dockerfile": null,
+  "image": "onjg/yongyuanjiang:latest",
+  "port": 3000,
+  "environment": [
+    {
+      "name": "JWT_SECRET",
+      "value": "change-this-secret-in-production"
+    },
+    {
+      "name": "CORS_ORIGIN",
+      "value": "https://${space_id}.hf.space"
+    }
+  ],
+  "resources": {
+    "cpu": "2",
+    "memory": "4GB",
+    "gpu": null
+  },
+  "health_check": {
+    "timeout": 10,
+    "retries": 3,
+    "endpoint": "/api/health"
+  },
+  "metrics": []
+}

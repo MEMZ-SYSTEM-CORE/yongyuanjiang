@@ -9,7 +9,7 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 COPY backend/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY backend/ ./
 RUN npm run build
@@ -21,7 +21,7 @@ ARG DOCKER_HUB_USERNAME
 WORKDIR /app
 
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY frontend/ ./
 RUN npm run build
@@ -37,7 +37,7 @@ RUN apk add --no-cache python3 make g++
 ENV NODE_ENV=production
 
 COPY backend/package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 COPY --from=frontend-builder /app/dist ./public

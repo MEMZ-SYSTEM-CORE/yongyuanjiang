@@ -21,7 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const STATIC_PATH = process.env.STATIC_PATH || path.join(__dirname, '../../public');
+const STATIC_PATH = process.env.STATIC_PATH || path.join(__dirname, '../public');
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -41,7 +41,7 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-app.use(logger.middleware);
+app.use((logger as any).middleware);
 
 app.use(express.static(STATIC_PATH));
 
@@ -66,7 +66,7 @@ app.use(errorHandler);
 Database.initialize();
 
 app.listen(PORT, () => {
-  console.log(`🚀 永远酱系统服务已启动: http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 export default app;

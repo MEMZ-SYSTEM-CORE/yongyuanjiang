@@ -1,34 +1,35 @@
-import Database from 'better-sqlite3';
+import BetterSQLiteDatabase from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, '../../data/forever_jiang.db');
 
-let db: Database.Database;
+let db: BetterSQLiteDatabase.Database;
 
-export class Database {
-  private static instance: Database;
+class DatabaseManager {
+  private static instance: DatabaseManager;
   
   private constructor() {
     const dataDir = path.dirname(dbPath);
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
-    db = new Database(dbPath);
+    db = new BetterSQLiteDatabase(dbPath);
     this.createTables();
   }
   
-  static getInstance(): Database {
-    if (!Database.instance) {
-      Database.instance = new Database() as unknown as Database;
+  static getInstance(): DatabaseManager {
+    if (!DatabaseManager.instance) {
+      DatabaseManager.instance = new DatabaseManager();
     }
-    return Database.instance;
+    return DatabaseManager.instance;
   }
   
   static initialize(): void {
-    Database.getInstance();
+    DatabaseManager.getInstance();
   }
   
   private createTables(): void {
@@ -99,10 +100,12 @@ export class Database {
     const stmt = db.prepare('INSERT OR IGNORE INTO system_config (key, value) VALUES (?, ?)');
     stmt.run('max_file_size', '1073741824');
     stmt.run('default_storage_quota', '10737418240');
-    stmt.run('token_secret', require('crypto').randomBytes(32).toString('hex'));
+    stmt.run('token_secret', crypto.randomBytes(32).toString('hex'));
   }
   
-  getConnection(): Database.Database {
+  getConnection(): BetterSQLiteDatabase.Database {
     return db;
   }
 }
+
+export const Database = DatabaseManager;

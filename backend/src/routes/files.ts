@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -50,58 +50,46 @@ const upload = multer({
   }
 });
 
-router.post('/upload', asyncHandler(async (req: AuthRequest, res: Response) => {
-  upload.single('file')(req, async (err: any) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        throw new HttpError(400, 'File size exceeds the limit of 1GB.');
-      }
-      throw new HttpError(400, err.message);
+router.post('/upload', upload.single('file'), asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    throw new HttpError(400, 'No file uploaded.');
+  }
+  
+  const db = Database.getInstance().getConnection();
+  const user = db.prepare('SELECT used_storage, storage_quota FROM users WHERE id = ?').get(req.user?.id) as any;
+  
+  if (user.used_storage + req.file.size > user.storage_quota) {
+    fs.unlinkSync(req.file.path);
+    throw new HttpError(400, 'Storage quota exceeded.');
+  }
+  
+  const fileId = uuidv4();
+  const { filename, originalname, size, mimetype } = req.file;
+  const filePath = path.relative(process.cwd(), req.file.path);
+  
+  const stmt = db.prepare(`
+    INSERT INTO files (id, user_id, filename, original_name, file_path, file_size, mime_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(fileId, req.user?.id, filename, originalname, filePath, size, mimetype);
+  
+  db.prepare('UPDATE users SET used_storage = used_storage + ?, updated_at = datetime("now") WHERE id = ?')
+    .run(size, req.user?.id);
+  
+  logger.info(`File uploaded: ${fileId} by user ${req.user?.id}`);
+  
+  res.status(201).json({
+    message: 'File uploaded successfully.',
+    file: {
+      id: fileId,
+      filename,
+      original_name: originalname,
+      file_size: size,
+      mime_type: mimetype,
+      download_count: 0,
+      created_at: new Date().toISOString()
     }
-    if (err) {
-      throw new HttpError(400, err.message);
-    }
-    
-    if (!req.file) {
-      throw new HttpError(400, 'No file uploaded.');
-    }
-    
-    const db = Database.getInstance().getConnection();
-    const user = db.prepare('SELECT used_storage, storage_quota FROM users WHERE id = ?').get(req.user?.id) as any;
-    
-    if (user.used_storage + req.file.size > user.storage_quota) {
-      fs.unlinkSync(req.file.path);
-      throw new HttpError(400, 'Storage quota exceeded.');
-    }
-    
-    const fileId = uuidv4();
-    const { filename, originalname, size, mimetype } = req.file;
-    const filePath = path.relative(process.cwd(), req.file.path);
-    
-    const stmt = db.prepare(`
-      INSERT INTO files (id, user_id, filename, original_name, file_path, file_size, mime_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(fileId, req.user?.id, filename, originalname, filePath, size, mimetype);
-    
-    db.prepare('UPDATE users SET used_storage = used_storage + ?, updated_at = datetime("now") WHERE id = ?')
-      .run(size, req.user?.id);
-    
-    logger.info(`File uploaded: ${fileId} by user ${req.user?.id}`);
-    
-    res.status(201).json({
-      message: 'File uploaded successfully.',
-      file: {
-        id: fileId,
-        filename,
-        original_name: originalname,
-        file_size: size,
-        mime_type: mimetype,
-        download_count: 0,
-        created_at: new Date().toISOString()
-      }
-    });
   });
 }));
 
@@ -212,8 +200,9 @@ router.get('/:id/direct-link', asyncHandler(async (req: AuthRequest, res: Respon
     throw new HttpError(404, 'File not found.');
   }
   
+  const jwt = await import('jsonwebtoken');
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const token = require('jsonwebtoken').sign(
+  const token = jwt.default.sign(
     { file_id: file.id },
     process.env.JWT_SECRET || 'your-secret-key',
     { expiresIn: '24h' }

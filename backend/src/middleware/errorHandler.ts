@@ -31,13 +31,14 @@ export const errorHandler = (
 };
 
 export class HttpError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string
-  ) {
+  statusCode: number;
+  isOperational: boolean;
+
+  constructor(statusCode: number, message: string) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
+    this.name = 'HttpError';
     Error.captureStackTrace(this, this.constructor);
   }
 }

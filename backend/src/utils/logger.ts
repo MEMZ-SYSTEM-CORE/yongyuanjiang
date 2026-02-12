@@ -1,6 +1,7 @@
 import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
+import { Request, Response, NextFunction } from 'express';
 
 const logDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDir)) {
@@ -32,3 +33,11 @@ logger.add(new winston.transports.Console({
     winston.format.simple()
   )
 }));
+
+(logger as any).middleware = (req: Request, res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    user_agent: req.get('user-agent')
+  });
+  next();
+};
